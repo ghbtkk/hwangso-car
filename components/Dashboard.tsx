@@ -12,6 +12,11 @@ export default function Dashboard({
 }: any) {
   const router = useRouter();
 
+  // 🌟 메모 확인 및 수정을 위한 상태
+  const [isViewMemoModalOpen, setIsViewMemoModalOpen] = useState(false);
+  const [selectedCarForMemo, setSelectedCarForMemo] = useState<any>(null);
+  const [memoInput, setMemoInput] = useState(""); // 🌟 메모 수정 입력값 상태
+
   // 실시간 상태 관리
   const [cars, setCars] = useState(initialCars);
   const [histories, setHistories] = useState(initialHistories);
@@ -176,10 +181,41 @@ export default function Dashboard({
     }
   };
 
+  // 🌟 [추가] 5. 메모 수정 및 타임스탬프 추가 저장 함수
+  const handleUpdateMemo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCarForMemo) return;
+    if (!memoInput.trim()) return alert("메모 내용을 입력해주세요.");
+
+    // 현재 날짜 및 시간 구하기 (예: 2026-06-30 22:54)
+    const now = new Date();
+    const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    // 기존 메모가 있으면 줄바꿈 후 추가, 없으면 새로 작성
+    const newMemoLine = `[${formattedDate}] ${memoInput}`;
+    const updatedMemo = selectedCarForMemo.memo
+      ? `${selectedCarForMemo.memo}\n${newMemoLine}`
+      : newMemoLine;
+
+    const { error } = await supabase
+      .from("car")
+      .update({ memo: updatedMemo })
+      .eq("car_id", selectedCarForMemo.car_id);
+
+    if (error) {
+      alert("메모 저장 실패: " + error.message);
+    } else {
+      alert("메모가 수정(추가)되었습니다.");
+      setMemoInput("");
+      setIsViewMemoModalOpen(false);
+      setSelectedCarForMemo(null);
+      await refreshData();
+    }
+  };
+
   // 통계 재계산
   const totalCars = cars.length;
   const parkingCars = cars.filter((c: any) => c.status === "주차중").length;
-  const outCars = totalCars - parkingCars;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 font-sans">
@@ -200,7 +236,6 @@ export default function Dashboard({
           ➕ 새 차량 등록
         </button>
       </header>
-
       {/* 현황 통계 영역 */}
       <section className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <div className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
@@ -222,7 +257,6 @@ export default function Dashboard({
           </p>
         </div>
       </section>
-
       {/* 검색 바 */}
       <div className="mb-6">
         <input
@@ -233,7 +267,12 @@ export default function Dashboard({
           className="w-full lg:w-1/3 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none shadow-sm text-black"
         />
       </div>
-
+      <a
+        href="/car-list"
+        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl text-sm shadow-sm inline-block mb-4"
+      >
+        📋 지정번호 관리 대장 (1~300번) 보러가기 →
+      </a>
       {/* 메인 콘텐츠 */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* 차량 목록 표 */}
@@ -254,8 +293,17 @@ export default function Dashboard({
               <tbody className="divide-y divide-gray-200">
                 {filteredCars.map((car: any) => (
                   <tr key={car.car_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {car.car_number}
+                    <td className="px-4 py-3 font-semibold">
+                      <button
+                        onClick={() => {
+                          setSelectedCarForMemo(car);
+                          setIsViewMemoModalOpen(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-800 hover:underline text-left focus:outline-none"
+                        title="클릭하여 메모 보기 및 수정"
+                      >
+                        {car.car_number}
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-black">
                       {car.model} ({car.brand})
@@ -297,12 +345,86 @@ export default function Dashboard({
               </tbody>
             </table>
           </div>
+
+          {/* 🌟 [수정] 차량 번호 클릭 시 나타나는 메모 확인 및 수정 모달창 */}
+          {isViewMemoModalOpen && selectedCarForMemo && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+              <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl text-black">
+                <div className="flex justify-between items-start border-b pb-3 mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      📝 차량 비고/메모 관리
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {selectedCarForMemo.locationText}
+                    </p>
+                  </div>
+                  <span className="text-sm font-semibold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md">
+                    {selectedCarForMemo.car_number}
+                  </span>
+                </div>
+
+                {/* 1. 기존 메모 히스토리 영역 */}
+                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                  기존 메모 기록
+                </label>
+                <div className="bg-gray-50 rounded-xl p-3 max-h-40 overflow-y-auto border border-gray-100 mb-4">
+                  {selectedCarForMemo.memo ? (
+                    <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                      {selectedCarForMemo.memo}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center py-4">
+                      등록된 메모 기록이 없습니다.
+                    </p>
+                  )}
+                </div>
+
+                {/* 2. 새 메모 입력/수정 폼 영역 */}
+                <form onSubmit={handleUpdateMemo}>
+                  <div className="mb-4">
+                    <label className="block text-xs font-semibold text-gray-500 mb-1">
+                      새로운 메모 추가 (날짜/시간 자동 기록)
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="추가할 메모나 비고 내용을 입력하세요..."
+                      value={memoInput}
+                      onChange={(e) => setMemoInput(e.target.value)}
+                      className="w-full border rounded-xl p-2.5 text-sm focus:border-blue-500 focus:outline-none bg-white resize-none"
+                    />
+                  </div>
+
+                  {/* 버튼 제어 영역 */}
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsViewMemoModalOpen(false);
+                        setSelectedCarForMemo(null);
+                        setMemoInput("");
+                      }}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 font-medium rounded-xl text-sm transition-colors"
+                    >
+                      닫기
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm transition-colors"
+                    >
+                      메모 저장
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* 최근 이동 이력 */}
         <section className="rounded-xl bg-white p-6 shadow-sm border border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            최근 이동 이력
+            Recent Movement History
           </h2>
           <div className="flow-root">
             {histories.length > 0 ? (
