@@ -1,5 +1,6 @@
 import React from "react";
 import { supabase } from "@/lib/supabase";
+import { formatLocationText } from "@/lib/parkingLayout";
 import Dashboard from "../components/Dashboard";
 
 export const revalidate = 0;
@@ -25,9 +26,7 @@ export default async function Home() {
       );
       return {
         ...car,
-        locationText: loc
-          ? `${loc.section} ${loc.row}열 (${loc.spot}번)`
-          : "위치 지정 없음",
+        locationText: formatLocationText(loc),
       };
     }) || [];
 
