@@ -216,9 +216,9 @@ export default function CarListPage() {
         />
       </div>
 
-      {/* 표 리스트 */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="overflow-y-auto max-h-[75vh]">
+      {/* 🖥️ 데스크톱 화면 표 형태 */}
+      <div className="hidden sm:block bg-white rounded-xl shadow-sm border overflow-hidden">
+        <div className="overflow-auto max-h-[75vh]">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-100 text-xs text-gray-700 font-bold uppercase sticky top-0 z-10">
               <tr>
@@ -299,6 +299,77 @@ export default function CarListPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* 📱 모바일 화면 카드 리스트 형태 */}
+      <div className="block sm:hidden space-y-3">
+        {displayRows.map(({ displayId, car }) => (
+          <div
+            key={displayId}
+            className={`rounded-xl border p-4 shadow-sm ${
+              car
+                ? "border-gray-200 bg-white"
+                : "border-dashed border-gray-200 bg-gray-50/50"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-black text-gray-900">
+                {displayId}번
+              </span>
+              {car ? (
+                <span className="text-base font-bold text-gray-900">
+                  {car.car_number}
+                </span>
+              ) : (
+                <span className="text-sm text-gray-400">❌ 비어 있음</span>
+              )}
+            </div>
+
+            {car && (
+              <div className="mt-2.5 rounded-lg bg-gray-50 p-2.5 text-xs text-gray-600 whitespace-pre-line leading-relaxed border border-gray-100">
+                {car.memo || <span className="text-gray-300">메모 없음</span>}
+              </div>
+            )}
+
+            <div className="mt-3">
+              {car ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedCar(car);
+                      setMemoText("");
+                      setIsMemoModalOpen(true);
+                    }}
+                    className="rounded-lg bg-blue-50 py-2.5 text-xs font-semibold text-blue-600 active:bg-blue-100"
+                  >
+                    📝 메모추가
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleDeleteCar(car.car_id, displayId, car.car_number)
+                    }
+                    className="rounded-lg bg-red-50 py-2.5 text-xs font-semibold text-red-600 active:bg-red-100"
+                  >
+                    💰 판매완료
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setSelectedDisplayId(displayId);
+                    setRegisterMode("new");
+                    setSelectedExistingCarId("");
+                    setExistingCarMemo("");
+                    setIsAddModalOpen(true);
+                  }}
+                  className="w-full rounded-lg bg-green-600 py-2.5 text-xs font-semibold text-white active:bg-green-700"
+                >
+                  ➕ 등록
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* [모달창 코드 생략 - 위/아래 동일하게 정상 작동하도록 내장되어 있습니다] */}
